@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Spring Boot Chat App</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        #chat-box {
+            height: 300px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .message {
+            margin-bottom: 8px;
+        }
+        .timestamp {
+            color: gray;
+            font-size: 0.8em;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>WebSocket Chat</h2>
+
+    <div id="chat-box"></div>
+
+    <input type="text" id="sender" placeholder="Your name" />
+    <input type="text" id="message" placeholder="Type a message..." />
+    <button onclick="sendMessage()">Send</button>
+
+    <!-- SockJS and STOMP CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+    <script>
+        let stompClient = null;
+
+        function connect() {
+            const socket = new SockJS('/ws'); // Connect to Spring Boot backend
+            stompClient = Stomp.over(socket);
+            stompClient.connect({}, function () {
+                stompClient.subscribe('/topic/public', function (response) {
+                    const message = JSON.parse(response.body);
+                    displayMessage(message);
+                });
+            });
+        }
+
+        function sendMessage() {
+            const sender = document.getElementById('sender').value.trim();
+            const content = document.getElementById('message').value.trim();
+            if (sender && content) {
+                stompClient.send("/app/chat.sendMessage", {}, JSON.stringify({
+                    sender: sender,
+                    content: content
+                }));
+                document.getElementById('message').value = '';
+            }
+        }
+
+        function displayMessage(message) {
+            const chatBox = document.getElementById('chat-box');
+            const msgEl = document.createElement('div');
+            msgEl.classList.add('message');
+            msgEl.innerHTML = `<strong>${message.sender}</strong>: ${message.content} <span class="timestamp">(${message.timestamp})</span>`;
+            chatBox.appendChild(msgEl);
+            chatBox.scrollTop = chatBox.scrollHeight; // auto-scroll
+        }
+
+        connect(); // Start connection on page load
+    </script>
+
+</body>
+</html>
